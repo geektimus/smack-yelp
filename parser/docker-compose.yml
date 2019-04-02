@@ -1,0 +1,56 @@
+version: '3'
+
+services:
+  spark-master:
+    build: .
+    image: codingmaniacs/spark_base:2.4.0
+    container_name: spark-master
+    ports:
+      - 4040:4040
+      - 7077:7077
+      - 8080:8080
+      - 6066:6066
+    command: ["/usr/bin/supervisord", "--configuration=/opt/conf/master.conf"]
+    networks:
+      - spark-net
+ 
+  spark-slave:
+    image: codingmaniacs/spark_base:2.4.0
+    depends_on:
+      - spark-master
+    ports:
+      - "8081"
+    command: ["/usr/bin/supervisord", "--configuration=/opt/conf/slave.conf"]
+    volumes:
+      - ./docker-volume/spark-output/:/opt/output
+      - ./docker-volume/spark-events/:/opt/spark-events
+      - ./yelp_dataset/:/yelp_dataset
+    networks:
+      - spark-net
+
+  spark-history-server:
+      image: codingmaniacs/spark_base:2.4.0
+      container_name: spark-history-server
+      depends_on:
+        - spark-master
+      ports:
+        - "18080:18080"
+      command: ["/usr/bin/supervisord", "--configuration=/opt/conf/history-server.conf"]
+      volumes:
+        - ./docker-volume/spark-events:/opt/spark-events
+      networks:
+        - spark-net
+
+  # spark-submit:
+  #     build: ./tools
+  #     image: codingmaniacs/spark_submit:2.4.0
+  #     container_name: spark-submit
+  #     depends_on:
+  #       - spark-master
+  #     networks:
+  #       - spark-net
+
+networks:
+  spark-net:
+    external:
+      name: spark-net
