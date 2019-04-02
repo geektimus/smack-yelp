@@ -1,5 +1,6 @@
 package com.codingmaniacs.spark
 
+import com.codingmaniacs.data.utils.SentimentAnalysisUtils
 import org.apache.spark.sql.SparkSession
 
 object EntryPoint {
@@ -12,11 +13,13 @@ object EntryPoint {
 
     val reviewsFilePath = "./yelp_dataset/review.json"
     val businessFilePath = "./yelp_dataset/business.json"
-    val usersFilePath = "./yelp_dataset/user.json"
 
     val reviewDataFrame = sparkSession.read.json(reviewsFilePath)
     reviewDataFrame.createOrReplaceTempView("reviews")
+    val businessDataFrame = sparkSession.read.json(businessFilePath)
+    businessDataFrame.createOrReplaceTempView("business")
 
+    val sqlCtx = sparkSession.sqlContext
 
     // Reviews
     val reviewsWithAVGStarsDF = reviewDataFrame.sqlContext.sql(
@@ -25,12 +28,9 @@ object EntryPoint {
         |FROM reviews
         |GROUP BY business_id
       """.stripMargin
-    ).cache()
+    )
+
     // Show pet friendly business
-
-    val businessDataFrame = sparkSession.read.json(businessFilePath)
-    businessDataFrame.createOrReplaceTempView("business")
-
     val petFriendlyRestaurants = businessDataFrame.sqlContext.sql(
       """
         |SELECT name, attributes.DogsAllowed, review_count, business_id
@@ -39,17 +39,14 @@ object EntryPoint {
       """.stripMargin
     )
 
-    val petFriendlyRestaurantsReviews = petFriendlyRestaurants.join(
+    petFriendlyRestaurants.join(
       reviewsWithAVGStarsDF,
       Seq("business_id"),
       "inner"
-    )
-
-    petFriendlyRestaurantsReviews.createOrReplaceTempView("business_reviews")
+    ).createOrReplaceTempView("business_reviews")
 
     // Top 10 pet friendly restaurants with the highest start count
-    petFriendlyRestaurantsReviews
-      .sqlContext.sql(
+    sqlCtx.sql(
       """
         |SELECT name business_name, review_count reviews, stars rating
         |FROM business_reviews
@@ -76,33 +73,54 @@ object EntryPoint {
       """.stripMargin
     )
 
-    val reviewsByPriceRange = restaurants.join(
+    restaurants.join(
       reviews,
       Seq("business_id"),
       "inner"
-    )
+    ).createOrReplaceTempView("reviews_by_business_price")
 
-    reviewsByPriceRange.createOrReplaceTempView("reviews_by_business_price")
 
-    reviewsByPriceRange
-      .sqlContext
-      .sql(
-        """
-          |SELECT bround(avg(stars), 1) rating, price_range
-          |FROM reviews_by_business_price
-          |GROUP BY price_range
-          |ORDER BY price_range desc
-        """.stripMargin
-      ).show(10, truncate = false)
+    sqlCtx.sql(
+      """
+        |SELECT bround(avg(stars), 1) rating, price_range
+        |FROM reviews_by_business_price
+        |GROUP BY price_range
+        |ORDER BY price_range desc
+      """.stripMargin
+    ).show(10, truncate = false)
 
     // The user that has contributed the most reviews
 
-//    val usersDataFrame = sparkSession.read.json(usersFilePath)
-//    usersDataFrame.createOrReplaceTempView("users")
-//
-//    usersDataFrame.sqlContext.sql(
-//      """
-//        |SELECT name
-//      """.stripMargin)
+    sparkSession.udf.register("sentiment", (text: String) => SentimentAnalysisUtils.detectSentiment(text).toString)
+
+    // Reduce the search to only 100 restaurants in Montréal
+    sqlCtx.sql(
+      """
+        |SELECT business_id
+        |FROM business
+        |WHERE city = 'Montréal' and categories like '%Restaurant%'
+        |LIMIT 100
+      """.stripMargin).createOrReplaceTempView("montreal_restaurants")
+
+    sqlCtx.sql(
+      """
+        |SELECT mr.business_id, user_id, text, sentiment(text) sentiment
+        |FROM montreal_restaurants mr, reviews r
+        |WHERE mr.business_id = r.business_id
+      """.stripMargin
+    )
+      .createOrReplaceTempView("reviews_with_sentiment")
+
+    // Number of reviews per user which are positive or very_positive
+    sqlCtx.sql(
+      """
+        |SELECT user_id, sentiment, count(1)
+        |FROM reviews_with_sentiment
+        |WHERE sentiment in ('POSITIVE', 'VERY_POSITIVE')
+        |GROUP BY user_id, sentiment
+      """.stripMargin
+    ).show(10, truncate = false)
+
   }
+
 }
