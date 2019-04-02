@@ -48,6 +48,25 @@ On each project [parser, serving] folders
 - [Kafka][kafka-link] - Distributed streaming platform
 - [Docker][docker-link] - Containerize the parts of the pipeline
 
+## Useful Snippets
+
+### Get all the available categories of all the business
+
+```scala
+    val getCategoriesAsArray = udf((cat: String) =>
+      cat.split(",").filter(c => c != null).map(s => s.trim)
+    )
+
+    dataFrame
+      .withColumn("categories_split", getCategoriesAsArray(col("categories")))
+      .createOrReplaceTempView("business")
+
+    dataFrame
+      .drop("categories")
+      .sqlContext.sql("select distinct(explode(categories_split)) categories from business where categories is not null order by categories asc")
+      .collect.foreach(println)
+```
+
 ## Contributing
 
 Please read [CONTRIBUTING.md][contributing] for details on our code of conduct, and the process for submitting pull requests to us.
