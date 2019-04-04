@@ -41,16 +41,19 @@ services:
       networks:
         - spark-net
 
-  # spark-submit:
-  #     build: ./tools
-  #     image: codingmaniacs/spark_submit:2.4.0
-  #     container_name: spark-submit
-  #     depends_on:
-  #       - spark-master
-  #     networks:
-  #       - spark-net
+   cassandra:
+       image: cassandra:3.11
+       container_name: cassandra
+       depends_on:
+         - spark-master
+       networks:
+         - spark-net
+         - backend-net
 
 networks:
   spark-net:
     external:
       name: spark-net
+  backend-net:
+    external:
+      name: backend-net

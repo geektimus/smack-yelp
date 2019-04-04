@@ -145,3 +145,7 @@ root
  |-- text: string (nullable = true)
  |-- user_id: string (nullable = true)
 ```
+
+## TODO
+
+- Find a way to create the cassandra tables on the fly

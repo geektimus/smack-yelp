@@ -1,7 +1,7 @@
 package com.codingmaniacs.spark
 
 import com.codingmaniacs.data.utils.SentimentAnalysisUtils
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
 object EntryPoint {
   def main(args: Array[String]): Unit = {
@@ -9,6 +9,8 @@ object EntryPoint {
       .builder()
       .appName("Exploratory Analysis of Yelp Dataset")
       .master("local[*]")
+      .config("spark.cassandra.connection.host", "127.0.0.1")
+      .config("spark.cassandra.connection.port", "32787")
       .getOrCreate()
 
     val reviewsFilePath = "./yelp_dataset/review.json"
@@ -48,11 +50,16 @@ object EntryPoint {
     // Top 10 pet friendly restaurants with the highest start count
     sqlCtx.sql(
       """
-        |SELECT name business_name, review_count reviews, stars rating
+        |SELECT business_id id, name business_name, review_count reviews, stars rating
         |FROM business_reviews
         |ORDER BY stars desc, review_count desc
       """.stripMargin)
-      .show(10, truncate = false)
+      .write
+      .mode(SaveMode.Append)
+      .format("org.apache.spark.sql.cassandra")
+      .options(Map("table" -> "pet_friendly_restaurants", "keyspace" -> "analysis"))
+      .save()
+
 
     // is the price of the restaurants related to their stars?
     val restaurants = businessDataFrame.sqlContext.sql(
@@ -87,7 +94,12 @@ object EntryPoint {
         |GROUP BY price_range
         |ORDER BY price_range desc
       """.stripMargin
-    ).show(10, truncate = false)
+    )
+      .write
+      .mode(SaveMode.Append)
+      .format("org.apache.spark.sql.cassandra")
+      .options(Map("table" -> "rating_with_price_range", "keyspace" -> "analysis"))
+      .save()
 
     // The user that has contributed the most reviews
 
@@ -114,12 +126,17 @@ object EntryPoint {
     // Number of reviews per user which are positive or very_positive
     sqlCtx.sql(
       """
-        |SELECT user_id, sentiment, count(1)
+        |SELECT user_id, sentiment, count(1) count
         |FROM reviews_with_sentiment
         |WHERE sentiment in ('POSITIVE', 'VERY_POSITIVE')
         |GROUP BY user_id, sentiment
       """.stripMargin
-    ).show(10, truncate = false)
+    )
+      .write
+      .mode(SaveMode.Append)
+      .format("org.apache.spark.sql.cassandra")
+      .options(Map("table" -> "user_review_sentiment", "keyspace" -> "analysis"))
+      .save()
 
   }
 
