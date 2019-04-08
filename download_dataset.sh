@@ -25,7 +25,7 @@ then
 fi
 
 fileURL=$1
-fileDst=${2:-downloader}
+fileDst=${2:-parser/yelp_dataset}
 
-[ ! -d "$fileDst" ] && mkdir $fileDst
+[ ! -d "$fileDst" ] && mkdir -p $fileDst
 download_dataset
