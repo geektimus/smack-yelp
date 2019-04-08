@@ -8,13 +8,13 @@ object EntryPoint {
     val sparkSession = SparkSession
       .builder()
       .appName("Exploratory Analysis of Yelp Dataset")
-      .master("local[*]")
-      .config("spark.cassandra.connection.host", "127.0.0.1")
-      .config("spark.cassandra.connection.port", "32787")
+      .master("spark-master:7077")
+      .config("spark.cassandra.connection.host", "cassandra")
+      .config("spark.cassandra.connection.port", "9042")
       .getOrCreate()
 
-    val reviewsFilePath = "./yelp_dataset/review.json"
-    val businessFilePath = "./yelp_dataset/business.json"
+    val reviewsFilePath = "/yelp_dataset/review.json"
+    val businessFilePath = "/yelp_dataset/business.json"
 
     val reviewDataFrame = sparkSession.read.json(reviewsFilePath)
     reviewDataFrame.createOrReplaceTempView("reviews")

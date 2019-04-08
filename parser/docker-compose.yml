@@ -29,26 +29,28 @@ services:
       - spark-net
 
   spark-history-server:
-      image: codingmaniacs/spark_base:2.4.0
-      container_name: spark-history-server
-      depends_on:
-        - spark-master
-      ports:
-        - "18080:18080"
-      command: ["/usr/bin/supervisord", "--configuration=/opt/conf/history-server.conf"]
-      volumes:
-        - ./docker-volume/spark-events:/opt/spark-events
-      networks:
-        - spark-net
+    image: codingmaniacs/spark_base:2.4.0
+    container_name: spark-history-server
+    depends_on:
+      - spark-master
+    ports:
+      - "18080:18080"
+    command: ["/usr/bin/supervisord", "--configuration=/opt/conf/history-server.conf"]
+    volumes:
+      - ./docker-volume/spark-events:/opt/spark-events
+    networks:
+      - spark-net
 
-   cassandra:
-       image: cassandra:3.11
-       container_name: cassandra
-       depends_on:
-         - spark-master
-       networks:
-         - spark-net
-         - backend-net
+  cassandra:
+    image: cassandra:3.11
+    container_name: cassandra
+    depends_on:
+      - spark-master
+    volumes:
+      - ./cassandra-data:/cassandra-data
+    networks:
+      - spark-net
+      - backend-net
 
 networks:
   spark-net:

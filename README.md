@@ -36,6 +36,18 @@ sbt test
 
 On each project [parser, serving] folders
 
+## Docker image/container creation
+
+To create all the containers required for this project you only need to use the _Makefile_ inside the parser project.
+
+### Commands
+
+**make build**: Builds the docker container _codingmaniacs/spark_base_ version 2.4.0 (Based on the Spark version inside the image), then it creates the fat jar (Spark job) for the transformation and storage of the data on Cassandra.
+
+**make up**: Uses the spark_base image to create three services, Spark Master, Spark Slave (Scalable using `docker-compose scale spark-slave=<number of instances>`), Spark History, Cassandra DB. The Spark cluster will reside on its own network and the cassandra db will reside in the spark network and in the backend network (here we will add the akka microservices)
+
+**make down**: This will teardown all the services and the networks with it.
+
 ## Usage
 
 **TODO**
